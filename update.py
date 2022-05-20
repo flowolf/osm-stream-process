@@ -1,11 +1,11 @@
 #!/bin/python
 
 import sys
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import xml.etree.cElementTree as ElementTree
 import simplejson as json
 import datetime
-import StringIO
+import io
 import gzip
 import time
 import calendar
@@ -110,28 +110,28 @@ def minutelyUpdateRun(state):
   sqnStr = state['sequenceNumber'].zfill(9)
   url = "http://planet.openstreetmap.org/minute-replicate/%s/%s/%s.osc.gz" % (sqnStr[0:3], sqnStr[3:6], sqnStr[6:9])
 
-  print "Downloading change file (%s)." % (url)
-  content = urllib2.urlopen(url)
-  content = StringIO.StringIO(content.read())
+  print("Downloading change file (%s)." % (url))
+  content = urllib.request.urlopen(url)
+  content = io.StringIO(content.read())
   gzipper = gzip.GzipFile(fileobj=content)
 
-  print "Parsing change file."
+  print("Parsing change file.")
   handler = OscHandler()
   parseOsm(gzipper, handler)
 
-  print "%d nodes, %d ways, %d relations." % (len(handler.nodes), len(handler.ways), len(handler.relations))
+  print("%d nodes, %d ways, %d relations." % (len(handler.nodes), len(handler.ways), len(handler.relations)))
 
-  for node in handler.nodes.values():
+  for node in list(handler.nodes.values()):
     #collateData(user_collation, node['user'], node['action'])
     #collateData(changeset_collation, node['changeset'], node['action'])
     collateData(time_collation, int(node['timestamp']) * 1000, node['action'])
     collateData(time_user_collation, int(node['timestamp']) * 1000, node['user'])
-  for way in handler.ways.values():
+  for way in list(handler.ways.values()):
     #collateData(user_collation, way['user'], way['action'])
     #collateData(changeset_collation, way['changeset'], way['action'])
     collateData(time_collation, int(way['timestamp']) * 1000, way['action'])
     collateData(time_user_collation, int(way['timestamp']) * 1000, way['user'])
-  for relation in handler.relations.values():
+  for relation in list(handler.relations.values()):
     #collateData(user_collation, relation['user'], relation['action'])
     #collateData(changeset_collation, relation['changeset'], relation['action'])
     collateData(time_collation, int(relation['timestamp']) * 1000, relation['action'])
@@ -170,12 +170,12 @@ def fetchNextState(currentState):
   sqnStr = str(nextSqn).zfill(9)
   url = "http://planet.openstreetmap.org/minute-replicate/%s/%s/%s.state.txt" % (sqnStr[0:3], sqnStr[3:6], sqnStr[6:9])
   try:
-    u = urllib2.urlopen(url)
+    u = urllib.request.urlopen(url)
     statefile = open('state.txt', 'w')
     statefile.write(u.read())
     statefile.close()
-  except Exception, e:
-    print e
+  except Exception as e:
+    print(e)
     return False
 
   return True 
@@ -195,11 +195,11 @@ if __name__ == "__main__":
       timeToSleep = (nextTs - datetime.datetime.utcnow()).seconds + 13.0
     else:
       timeToSleep = 0.0
-    print "Waiting %2.1f seconds for the next state.txt." % (timeToSleep)
+    print("Waiting %2.1f seconds for the next state.txt." % (timeToSleep))
     time.sleep(timeToSleep)
     
     result = fetchNextState(state)
 
     if not result:
-      print "Couldn't continue. Sleeping %2.1f more seconds." % (15.0)
+      print("Couldn't continue. Sleeping %2.1f more seconds." % (15.0))
       time.sleep(15.0)
